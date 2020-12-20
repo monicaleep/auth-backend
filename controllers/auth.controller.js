@@ -22,11 +22,15 @@ exports.signup = (req,res) => {
     if(err){
       return res.status(500).send({message: 'Error signing up user'+err})
     }
+    //this will be sent with the response
     const userData = {
       id: user._id,
       username: user.username,
       email: user.email,
+      roles: [],
+      token: getJWT(user)
     }
+
     // we check if roles were passed on req.body
     if(req.body.roles){
       Role.find({
@@ -37,13 +41,14 @@ exports.signup = (req,res) => {
         }
         // pass roles from the request
         user.roles = roles.map(role=>role._id)
-
-        user.save(err=>{
+        roles.forEach(role=>{
+          userData.roles.push(`ROLE_${role.name.toUpperCase()}`)
+        })
+        user.save( async (err,savedUser)=>{
           if(err){
             res.status(500).send({message:err})
           }
-          res.send({message:"User created successfully"})
-          //this is where we need to get the JWT and log in the user
+            res.status(200).send(userData)
         })
       })
     } else {
@@ -54,31 +59,27 @@ exports.signup = (req,res) => {
           return
         }
         user.roles = [role._id]
-        user.save(err=>{
+        user.save(async err=>{
           if(err){
-          return res.status(500).send({message:err})
+            return res.status(500).send({message:err})
           }
-          res.send("User was registered successfully")
+          userData.roles.push("ROLE_USER")
+          res.status(200).send(userData)
         })
       })
     }
-
   })
 }
 
-const getAuthorities = (user) => {
-  let authorities = [];
-  for (let i =0;i<user.roles.length;i++){
-    authorities.push("ROLE_" + user.roles[i].name.toUpperCase())
-  }
-  return authorities
-}
+
 
 const getJWT = (user) => {
   return jwt.sign({id:user._id},config.secret,{
     expiresIn: 86400 // expires today in 24 hours (in seconds)
   })
 }
+
+
 exports.signin = (req,res) => {
   User.findOne({
     username: req.body.username
@@ -105,7 +106,10 @@ exports.signin = (req,res) => {
     // if password is valid, generate a token
     const token = getJWT(user)
     // setting roles to pass back in our response
-    const authorities = getAuthorities(user);
+    let authorities = [];
+    for (let i =0;i<user.roles.length;i++){
+      authorities.push("ROLE_" + user.roles[i].name.toUpperCase())
+    }
 
 
     res.status(200).send({
