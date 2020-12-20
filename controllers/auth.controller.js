@@ -20,8 +20,7 @@ exports.signup = (req,res) => {
   })
   user.save((err,user)=>{
     if(err){
-      res.status(500).send({message: 'Error signing up user'+err})
-      return
+      return res.status(500).send({message: 'Error signing up user'+err})
     }
     // we check if roles were passed on req.body
     if(req.body.roles){
@@ -29,8 +28,8 @@ exports.signup = (req,res) => {
         name: {$in: req.body.roles}
       },(err,roles) => {
         if(err){
-          res.status(500).send({message: err})
-          return
+          return res.status(500).send({message: err})
+
         }
         // pass roles from the request
         user.roles = roles.map(role=>role._id)
@@ -52,8 +51,7 @@ exports.signup = (req,res) => {
         user.roles = [role._id]
         user.save(err=>{
           if(err){
-            res.status(500).send({message:err})
-            return
+          return res.status(500).send({message:err})
           }
           res.send("User was registered successfully")
         })
