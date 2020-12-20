@@ -22,6 +22,11 @@ exports.signup = (req,res) => {
     if(err){
       return res.status(500).send({message: 'Error signing up user'+err})
     }
+    const userData = {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+    }
     // we check if roles were passed on req.body
     if(req.body.roles){
       Role.find({
@@ -29,7 +34,6 @@ exports.signup = (req,res) => {
       },(err,roles) => {
         if(err){
           return res.status(500).send({message: err})
-
         }
         // pass roles from the request
         user.roles = roles.map(role=>role._id)
@@ -39,6 +43,7 @@ exports.signup = (req,res) => {
             res.status(500).send({message:err})
           }
           res.send({message:"User created successfully"})
+          //this is where we need to get the JWT and log in the user
         })
       })
     } else {
@@ -61,7 +66,19 @@ exports.signup = (req,res) => {
   })
 }
 
+const getAuthorities = (user) => {
+  let authorities = [];
+  for (let i =0;i<user.roles.length;i++){
+    authorities.push("ROLE_" + user.roles[i].name.toUpperCase())
+  }
+  return authorities
+}
 
+const getJWT = (user) => {
+  return jwt.sign({id:user._id},config.secret,{
+    expiresIn: 86400 // expires today in 24 hours (in seconds)
+  })
+}
 exports.signin = (req,res) => {
   User.findOne({
     username: req.body.username
@@ -86,14 +103,10 @@ exports.signin = (req,res) => {
       return res.status(401).send({accessToken: null, message: "invalid password"})
     }
     // if password is valid, generate a token
-    const token = jwt.sign({id:user._id},config.secret,{
-      expiresIn: 86400 // expires today in 24 hours (in seconds)
-    })
+    const token = getJWT(user)
     // setting roles to pass back in our response
-    let authorities = [];
-    for (let i =0;i<user.roles.length;i++){
-      authorities.push("ROLE_" + user.roles[i].name.toUpperCase())
-    }
+    const authorities = getAuthorities(user);
+
 
     res.status(200).send({
       id: user._id,
